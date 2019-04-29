@@ -5,7 +5,13 @@
 #include <vector>
 #include <time.h> 
 #include <exception>
-#include <Windows.h>
+#include <thread> 
+#ifdef __linux__
+	#include <unistd.h>
+#else
+	#include <Windows.h>
+#endif
+
  
 using namespace std;
 using namespace cv;
@@ -13,21 +19,32 @@ using namespace cv;
 void detectAndDraw( Mat& img, CascadeClassifier& cascade, double scale );
 void generateSequence();
 void updatePoints(Mat frame);
-
+void showSequence(Mat img);
+void zerar();
+void acertou();
+void win();
 
 string cascadeName;
 const char *title = "MEU PAU DE OCULOS";
 Mat pau;
 
 int pontos = 0;
-int vez;
+int vez=0;
+int vezAnterior=0;
+
+int indice = 0;
+int indexUser = 0;
+bool pronto = false;
+
 vector<int> randons;
+
+bool active = false;
 
 clock_t start;
 int main( int argc, const char** argv )
 {
 
-	start = clock();
+	
     VideoCapture capture;
     Mat frame;
     CascadeClassifier cascade;
@@ -63,7 +80,7 @@ int main( int argc, const char** argv )
     if( capture.isOpened() )
     {
 		
-        cout << "Video capturing has been started ..." << endl;
+        cout << "O jogo vai começar..." << endl;
         for(;;)
         {
             try {
@@ -73,13 +90,21 @@ int main( int argc, const char** argv )
             catch (cv::Exception& e)
             {
                 std::cout << " Excecao2 capturada frame: " << e.what() << std::endl;
-                Sleep(1000000);
+				#ifdef __linux__ 
+					usleep(1000000);
+				#else
+					Sleep(1000000);
+				#endif
                 continue;
             }
             catch (std::exception& e)
             {
                 std::cout << " Excecao3 capturada frame: " << e.what() << std::endl;
-                Sleep(1000000);
+				#ifdef __linux__ 
+					usleep(1000000);
+				#else
+					Sleep(1000000);
+				#endif
                 continue;
             }
  
@@ -93,7 +118,38 @@ int main( int argc, const char** argv )
 
 			line(frame, Point(0, (frame.size().height/2)), Point(frame.size().width, (frame.size().height / 2)), Scalar(0, 0, 0), 2, 8);
 			line(frame, Point(frame.size().width/2, 0), Point(frame.size().width/2,frame.size().height), Scalar(0, 0, 0), 2, 8);
-			
+
+			showSequence(frame);
+			if (vez == 7) {
+				indexUser = 0;
+				zerar();
+				win();
+				cout << "GANHOU!!!!" << endl;
+				capture.release();
+			}
+
+			if (vezAnterior == indice) {
+				//cout << "Vez anterior: " << vezAnterior << endl;
+				//cout << "Index: " << index << endl;
+				if (((clock() - start) / CLOCKS_PER_SEC) > 5) {
+					//cout << "Vez: " << vez << endl;
+					if (indice == vez) {
+						pronto = true;
+						indice = 0;
+					}
+					
+					else if (indice == 6) {
+						indice = 0;
+						pronto = true;
+					}
+					else {
+						indice++;
+						pronto = false;
+					}
+					start = clock();
+					//vezAnterior++;
+				}
+			}
 			
 			detectAndDraw( frame, cascade, scale );
  
@@ -156,67 +212,148 @@ void detectAndDraw( Mat& img, CascadeClassifier& cascade, double scale)
         Rect r = faces[i];
         Point center;
  
-        printf("xy face = %d x %d\n", r.x, r.y);
-		printf("xy frame= %d x %d\n\n", img.size().width, img.size().height);
+        //printf("xy face = %d x %d\n", r.x, r.y);
+		//printf("xy frame= %d x %d\n\n", img.size().width, img.size().height);
 
 		rectangle(img, Point(cvRound(r.x * scale), cvRound(r.y * scale)),
 			Point(cvRound((r.x + r.width - 1) * scale), cvRound((r.y + r.height - 1) * scale)),
 			color, 1, 8, 0);
-		while ((((float)(clock() - start)) / CLOCKS_PER_SEC) < 15) {
-
-		}
+		
 		if ((r.x < 250 / 2) && (r.y < 155 / 2)) {
 			//mciSendString("play mp3", NULL, 0, NULL);
 			//system("start acertou-mizeravijk.mp3");
-			cout << "Quadrante 1" << endl;
-			if (randons[vez] == 0) {
-				pontos += 3;
-				vez++;
-				start = clock();
-			}
-			else {
-				vez = 0;
-				system("start acertou-mizeravijk.mp3");
-				generateSequence();
+			//cout << "Quadrante 1" << endl;
+
+			if (pronto){
+				if (((clock() - start) / CLOCKS_PER_SEC) > 3) {
+					if (randons[indexUser] == 0) {
+						//cout << "Acertou" << endl;
+						pontos += 3;
+						acertou();
+						if (indexUser == vez) {
+							indexUser = 0;
+							pronto = false;
+							vez++;
+						}
+						else {
+							indexUser++;
+						}
+						start = clock();
+					}
+					else {
+						//cout << "Errou" << endl;
+#ifdef __linux__
+						system("mplayer faustao-errou.mp3");
+#else
+						system("start faustao-errou.mp3");
+#endif
+						zerar();
+					}
+				}
 			}
 		}else if ((r.x > 250/2) && (r.y < 155/2)) {
-			cout << "Quadrante 2" << endl;
-			if (randons[vez] == 1) {
-				pontos += 3;
-				vez++;
-				start = clock();
-			}
-			else {
-				vez = 0;
-				system("start acertou-mizeravijk.mp3");
-				generateSequence();
+			//cout << "Quadrante 2" << endl;
+			if (pronto) {
+				if (((clock() - start) / CLOCKS_PER_SEC) > 3) {
+					if (randons[indexUser] == 1) {
+						//cout << "Acertou" << endl;
+						pontos += 3;
+						acertou();
+						if (indexUser == vez) {
+							indexUser = 0;
+							pronto = false;
+							vez++;
+						}
+						else {
+							indexUser++;
+						}
+						
+						start = clock();
+						//thread show(showSequence, img);
+						//show.join();
+						//showSequence(img);
+					}
+					else {
+#ifdef __linux__
+						system("mplayer faustao-errou.mp3");
+#else
+						system("start faustao-errou.mp3");
+#endif
+						zerar();
+					}
+				}
 			}
 		}
 		else if ((r.x < 250 / 2) && (r.y > 155 / 2)) {
-			cout << "Quadrante 3" << endl;
-			if (randons[vez] == 2) {
-				pontos += 3;
-				vez++;
-				start = clock();
-			}
-			else {
-				vez = 0;
-				system("start acertou-mizeravijk.mp3");
-				generateSequence();
+			//cout << "Quadrante 3" << endl;
+			if (pronto) {
+				if (((clock() - start) / CLOCKS_PER_SEC) > 3) {
+					if (randons[indexUser] == 2) {
+						//cout << "Acertou" << endl;
+						pontos += 3;
+						acertou();
+						if (indexUser == vez) {
+							indexUser = 0;
+							pronto = false;
+							vez++;
+						}
+						else {
+							indexUser++;
+						}
+						start = clock();
+						//thread show(showSequence, img);
+						//show.join();
+						//showSequence(img);
+					}
+					else {
+#ifdef __linux__
+						system("mplayer faustao-errou.mp3");
+#else
+						system("start faustao-errou.mp3");
+#endif
+						zerar();
+					}
+				}
 			}
 		}
 		else if ((r.x > 250 / 2) && (r.y > 155 / 2)) {
-			cout << "Quadrante 4" << endl;
-			if (randons[vez] == 3) {
-				pontos += 3;
-				vez++;
-				start = clock();
+			//cout << "Quadrante 4" << endl;
+			if (pronto) {
+				if (((clock() - start) / CLOCKS_PER_SEC) > 3) {
+					if (randons[indexUser] == 3) {
+						//cout << "Acertou" << endl;
+						pontos += 3;
+						acertou();
+						if (indexUser == vez) {
+							indexUser = 0;
+							pronto = false;
+							vez++;
+						}
+						else {
+							indexUser++;
+						}
+						start = clock();
+						//thread show(showSequence, img);
+						//show.join();
+						//showSequence(img);
+					}
+					else {
+#ifdef __linux__
+						system("mplayer faustao-errou.mp3");
+#else
+						system("start faustao-errou.mp3");
+#endif
+						zerar();
+					}
+				}
 			}
-			else {
-				vez = 0;
-				system("start acertou-mizeravijk.mp3");
-				generateSequence();
-			}
+		}
+		
+		if (indexUser == 7) {
+			indexUser = 0;
+			zerar();
+			win();
+			cout << "GANHOU" << endl;
 		}
 		updatePoints(img);
 
@@ -235,16 +372,93 @@ void generateSequence() {
 		randons.push_back(rand() % 4);
 	}
 
-	cout << "SEQUENCE: ";
+/*	cout << "SEQUENCE: ";
 
 	for (int number : randons) {
 		cout << number;
 	}
 	cout << endl;
+	*/
+	
+}
+
+void showSequence(Mat img) {
+	if (!pronto) {
+		if (randons[indice] == 0) {
+			rectangle(img, Point(0, 0), Point(img.size().width / 2, img.size().height / 2), Scalar(204, 255, 51), 1, 8, 0);
+		}
+		else if (randons[indice] == 1) {
+			rectangle(img, Point(img.size().width / 2, 0), Point(img.size().width, img.size().height / 2), Scalar(204, 255, 51), 1, 8, 0);
+		}
+		else if (randons[indice] == 2) {
+			rectangle(img, Point(0, img.size().height / 2), Point(img.size().width / 2, img.size().height), Scalar(204, 255, 51), 1, 8, 0);
+		}
+		else if (randons[indice] == 3) {
+			rectangle(img, Point(img.size().width / 2, img.size().height / 2), Point(img.size().width, img.size().height), Scalar(204, 255, 51), 1, 8, 0);
+		}
+		vezAnterior = indice;
+	}
+/*pronto = false;
+	for (int i = 0; i <= vez; i++) {
+		
+			
+
+			vezAnterior = vez;
+			
+			
+
+
+			//active = false;
+			//Sleep(5000);
+			//thread wait(waitSeconds, 5);
+			//wait.join();
+		}
+	
+	pronto = true;*/
+	return;
 }
 
 void updatePoints(Mat frame) {
-	//String point;
+	std::stringstream ss;
+	ss << "Pontuacao: " << pontos;
+	String point = ss.str();
+	
+	putText(frame, point, Point(10, 20), FONT_HERSHEY_COMPLEX, 0.5, Scalar(0, 0, 0), 1, LINE_AA);
+	
+}
 
-	putText(frame, "Pontuacao: "+pontos, Point(10, 20), FONT_HERSHEY_COMPLEX, 0.5, Scalar(0, 0, 0), 1, LINE_AA);
+void zerar() {
+	
+
+	
+	
+
+	pronto = false;
+	
+	pontos = 0;
+	vez = 0;
+	vezAnterior = 0;
+
+	indice = 0;
+	indexUser = 0;
+	
+	active = false; 
+
+	generateSequence();
+}
+
+void acertou() {
+	#ifdef __linux__
+		system("mplayer acertou-mizeravijk.mp3");
+	#else
+		system("start acertou-mizeravijk.mp3");
+	#endif
+}
+
+void win() {
+	#ifdef __linux__
+		system("mplayer vitoria_ayrton_senna.mp3");
+	#else
+		system("start vitoria_ayrton_senna.mp3");
+	#endif
 }
